@@ -91,11 +91,36 @@ function globals(warn, call)
   end
 end
 
+# dynamic dispatch
+
+rebuild(code, x) = x
+rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
+rebuild(code, x::SlotNumber) = code.slotnames[x.id]
+
+function rebuild(code, x::SSAValue)
+  for ex in code.code
+    isexpr(ex, :(=)) && ex.args[1] == x && return rebuild(code, ex.args[2])
+  end
+  error("$x not found")
+end
+
+function dispatch(warn, call)
+  c = code(call, optimize = true)[1]
+  eachline(c, method(call).line) do line, ex
+    (isexpr(ex, :(=)) && isexpr(ex.args[2], :call)) || return
+    callex = rebuild(c, ex.args[2])
+    f = callex.args[1]
+    f isa GlobalRef && isprimitive(getfield(f.mod, f.name)) && return
+    warn(call, line, "dynamic dispatch to $(callex)")
+  end
+end
+
 # overall analysis
 
 function analyse(warn, call)
   c, out = code(call)
   globals(warn, call)
   locals(warn, call)
+  dispatch(warn, call)
   isleaftype(out) || warn(call, "returns $out")
 end
