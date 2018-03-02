@@ -115,12 +115,18 @@ function dispatch(warn, call)
   end
 end
 
+# return type
+
+function rettype(warn, call)
+  c, out = code(call)
+  isleaftype(out) || warn(call, "returns $out")
+end
+
 # overall analysis
 
 function analyse(warn, call)
-  c, out = code(call)
   globals(warn, call)
   locals(warn, call)
   dispatch(warn, call)
-  isleaftype(out) || warn(call, "returns $out")
+  rettype(warn, call)
 end
