@@ -1,18 +1,20 @@
 struct Call{F,A}
   f::F
   a::A
-  Call(f,a...) = new(f, a)
+  Call{F,A}(f,a...) where {F,A} = new(f, a)
 end
 
 Call(f, a...) = Call{typeof(f),typeof(a)}(f, a...)
 
 argtypes(c::Call) = Base.typesof(c.a...)
+types(c::Call) = (typeof(c.f), argtypes(c).parameters...)
 
 method(c::Call) = which(c.f, argtypes(c))
 
-function method_expr(c::Call)
-  :($(c.f)($([:(::$T) for T in argtypes(c).parameters]...)))
-end
+method_expr(f, Ts::Type{<:Tuple}) =
+  :($f($([:(::$T) for T in Ts.parameters]...)))
+
+method_expr(c::Call) = method_expr(f, argtypes(c))
 
 function loc(c::Call)
   meth = method(c)
@@ -37,6 +39,16 @@ function eachline(f, code, line = -1)
   end
 end
 
+struct Warning
+  f
+  a::Type{<:Tuple}
+  line::Int
+  message::String
+end
+
+Warning(c::Call, line, message) = Warning(c.f, argtypes(c), line, message)
+Warning(meth, message) = Warning(meth, -1, message)
+
 # local variables
 
 exprtype(x) = typeof(x)
@@ -55,29 +67,24 @@ function assignments(code, l = -1)
   return assigns
 end
 
-function warnlocals(call)
+function warnlocals(warn, call)
   l = method(call).line
   c = code(call)[1]
   as = assignments(c, l)
-  warned = false
   for (x, as) in as
     length(unique(map(x->x[2],as))) == 1 && continue
-    if !warned
-      warn("$(method_expr(call)) at $(loc(call))")
-      warned = true
-    end
     var = c.slotnames[x.id]
     for (l, t) in as
-      println("$var is assigned $t at line $l")
+      warn(call, l, "$var is assigned as $t")
     end
   end
 end
 
 # overall analysis
 
-function analyse(call)
+function analyse(warn, call)
   c, out = code(call)
-  warnlocals(call)
+  warnlocals(warn, call)
   isleaftype(out) ||
-    warn("$(method_expr(call))::$out at $(loc(call))")
+    warn(call, "returns $out")
 end
