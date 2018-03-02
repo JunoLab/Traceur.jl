@@ -51,15 +51,16 @@ Warning(meth, message) = Warning(meth, -1, message)
 
 # local variables
 
-exprtype(x) = typeof(x)
-exprtype(x::Expr) = x.typ
-exprtype(x::QuoteNode) = typeof(x.value)
+exprtype(code, x) = typeof(x)
+exprtype(code, x::Expr) = x.typ
+exprtype(code, x::QuoteNode) = typeof(x.value)
+exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
 
 function assignments(code, l = -1)
   assigns = Dict()
   eachline(code, l) do line, ex
     (isexpr(ex, :(=)) && isexpr(ex.args[1], SlotNumber)) || return
-    typ = exprtype(ex.args[2])
+    typ = exprtype(code, ex.args[2])
     push!(get!(assigns, ex.args[1], []), (line, typ))
   end
   return assigns
@@ -85,7 +86,8 @@ function globals(warn, call)
   eachline(c) do line, ex
     (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
     ref = ex.args[2]
-    isconst(ref.mod, ref.name) || warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
+    isconst(ref.mod, ref.name) ||
+      warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
   end
 end
 
@@ -95,6 +97,5 @@ function analyse(warn, call)
   c, out = code(call)
   globals(warn, call)
   locals(warn, call)
-  isleaftype(out) ||
-    warn(call, "returns $out")
+  isleaftype(out) || warn(call, "returns $out")
 end
