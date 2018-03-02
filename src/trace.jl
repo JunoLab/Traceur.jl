@@ -9,12 +9,12 @@ isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
 const ignored_methods = [@which((1,2)[1])]
 
 @primitive ctx::Trace function (f::Any)(args...)
-  T = typeof.((f, args...))
+  C, T = Call(f, args...), typeof.((f, args...))
   (T ∈ ctx.seen || isprimitive(f) ||
-    method(f, args...) ∈ ignored_methods) && return f(args...)
+    method(C) ∈ ignored_methods) && return f(args...)
   push!(ctx.seen, T)
   result = overdub(ctx, f, args...)
-  analyse(f, args...)
+  analyse(C)
   return result
 end
 
