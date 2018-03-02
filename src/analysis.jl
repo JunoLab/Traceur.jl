@@ -21,8 +21,8 @@ function loc(c::Call)
   "$(meth.file):$(meth.line)"
 end
 
-function code(c::Call)
-  codeinfo = code_typed(c.f, argtypes(c), optimize=false)
+function code(c::Call; optimize = false)
+  codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
   linearize!(codeinfo[1])
@@ -55,8 +55,6 @@ exprtype(x) = typeof(x)
 exprtype(x::Expr) = x.typ
 exprtype(x::QuoteNode) = typeof(x.value)
 
-# @code_typed(sum([1,2,3]))[1] |> fieldnames
-
 function assignments(code, l = -1)
   assigns = Dict()
   eachline(code, l) do line, ex
@@ -67,7 +65,7 @@ function assignments(code, l = -1)
   return assigns
 end
 
-function warnlocals(warn, call)
+function locals(warn, call)
   l = method(call).line
   c = code(call)[1]
   as = assignments(c, l)
@@ -80,11 +78,23 @@ function warnlocals(warn, call)
   end
 end
 
+# global variables
+
+function globals(warn, call)
+  c = code(call)[1]
+  eachline(c) do line, ex
+    (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
+    ref = ex.args[2]
+    isconst(ref.mod, ref.name) || warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
+  end
+end
+
 # overall analysis
 
 function analyse(warn, call)
   c, out = code(call)
-  warnlocals(warn, call)
+  globals(warn, call)
+  locals(warn, call)
   isleaftype(out) ||
     warn(call, "returns $out")
 end
