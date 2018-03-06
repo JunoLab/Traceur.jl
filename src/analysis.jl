@@ -55,6 +55,7 @@ exprtype(code, x) = typeof(x)
 exprtype(code, x::Expr) = x.typ
 exprtype(code, x::QuoteNode) = typeof(x.value)
 exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
+exprtype(code, x::SlotNumber) = code.slottypes[x.id]
 
 function assignments(code, l = -1)
   assigns = Dict()
