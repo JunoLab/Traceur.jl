@@ -12,7 +12,8 @@ const ignored_methods = [@which((1,2)[1])]
 @primitive ctx::Trace function (f::Any)(args...)
   C, T = Call(f, args...), typeof.((f, args...))
   (T ∈ ctx.seen || isprimitive(f) ||
-    method(C) ∈ ignored_methods) && return f(args...)
+    method(C) ∈ ignored_methods ||
+    method(C).module == Core.Inference) && return f(args...)
   push!(ctx.seen, T)
   result = overdub(ctx, f, args...)
   analyse((a...) -> ctx.warn(Warning(a...)), C)
