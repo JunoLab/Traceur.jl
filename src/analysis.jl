@@ -72,7 +72,7 @@ function locals(warn, call)
   c = code(call)[1]
   as = assignments(c, l)
   for (x, as) in as
-    length(unique(map(x->x[2],as))) == 1 && continue
+    (length(unique(map(x->x[2],as))) == 1 && isleaftype(as[1][2])) && continue
     var = c.slotnames[x.id]
     for (l, t) in as
       warn(call, l, "$var is assigned as $t")
