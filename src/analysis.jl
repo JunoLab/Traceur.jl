@@ -39,6 +39,17 @@ function eachline(f, code, line = -1)
   end
 end
 
+exprtype(code, x) = typeof(x)
+exprtype(code, x::Expr) = x.typ
+exprtype(code, x::QuoteNode) = typeof(x.value)
+exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
+exprtype(code, x::SlotNumber) = code.slottypes[x.id]
+
+rebuild(code, x) = x
+rebuild(code, x::QuoteNode) = x.value
+rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
+rebuild(code, x::SlotNumber) = code.slotnames[x.id]
+
 struct Warning
   f
   a::Type{<:Tuple}
@@ -49,13 +60,35 @@ end
 Warning(c::Call, line, message) = Warning(c.f, argtypes(c), line, message)
 Warning(meth, message) = Warning(meth, -1, message)
 
-# local variables
+# global variables
 
-exprtype(code, x) = typeof(x)
-exprtype(code, x::Expr) = x.typ
-exprtype(code, x::QuoteNode) = typeof(x.value)
-exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
-exprtype(code, x::SlotNumber) = code.slottypes[x.id]
+function globals(warn, call)
+  c = code(call)[1]
+  eachline(c) do line, ex
+    (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
+    ref = ex.args[2]
+    isconst(ref.mod, ref.name) ||
+      warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
+  end
+end
+
+# fields
+
+function fields(warn, call)
+  c = code(call)[1]
+  eachline(c) do line, x
+    (isexpr(x, :(=)) && isexpr(x.args[2], :call) &&
+     rebuild(c, x.args[2].args[1]) == GlobalRef(Core,:getfield)) ||
+      return
+    x, field = x.args[2].args[2:3]
+    x, x_expr, field = exprtype(c, x), rebuild(c, x), rebuild(c, field)
+    (isleaftype(x) && !(x.name.wrapper == Type) && field isa Symbol) ||
+      return
+    isleaftype(fieldtype(x, field)) || warn(call, line, "field $x_expr.$field::$(fieldtype(x, field)), $x_expr::$x")
+  end
+end
+
+# local variables
 
 function assignments(code, l = -1)
   assigns = Dict()
@@ -80,23 +113,7 @@ function locals(warn, call)
   end
 end
 
-# global variables
-
-function globals(warn, call)
-  c = code(call)[1]
-  eachline(c) do line, ex
-    (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
-    ref = ex.args[2]
-    isconst(ref.mod, ref.name) ||
-      warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
-  end
-end
-
 # dynamic dispatch
-
-rebuild(code, x) = x
-rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
-rebuild(code, x::SlotNumber) = code.slotnames[x.id]
 
 function rebuild(code, x::SSAValue)
   for ex in code.code
@@ -128,6 +145,7 @@ end
 
 function analyse(warn, call)
   globals(warn, call)
+  fields(warn, call)
   locals(warn, call)
   dispatch(warn, call)
   rettype(warn, call)
