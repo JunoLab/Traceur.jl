@@ -108,8 +108,9 @@ end
 function dispatch(warn, call)
   c = code(call, optimize = true)[1]
   eachline(c, method(call).line) do line, ex
-    (isexpr(ex, :(=)) && isexpr(ex.args[2], :call)) || return
-    callex = rebuild(c, ex.args[2])
+    isexpr(ex, :(=)) && (ex = ex.args[2])
+    isexpr(ex, :call) || return
+    callex = rebuild(c, ex)
     f = callex.args[1]
     f isa GlobalRef && isprimitive(getfield(f.mod, f.name)) && return
     warn(call, line, "dynamic dispatch to $(callex)")
