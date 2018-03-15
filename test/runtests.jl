@@ -1,4 +1,5 @@
-using Traceur: warnings, @trace
+using Traceur
+using Traceur: warnings
 using Base.Test
 
 warns_for(ws, x) = any(w -> contains(w.message, x), ws)

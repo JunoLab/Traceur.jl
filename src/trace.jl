@@ -22,19 +22,7 @@ end
 
 trace(w, f) = overdub(Trace(w), f)
 
-function warntrace(f)
-  call = nothing
-  function warn(w)
-    if (w.f, w.a) != call
-      call = (w.f, w.a)
-      method = which(w.f, w.a)
-      print_with_color(:yellow, method_expr(call...),
-                       " at $(method.file):$(method.line)", '\n')
-    end
-    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
-  end
-  trace(warn, f)
-end
+warntrace(f) = trace(warning_printer(), f)
 
 function warnings(f)
   warnings = Warning[]

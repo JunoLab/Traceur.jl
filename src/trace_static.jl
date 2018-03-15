@@ -106,29 +106,16 @@ function trace_static(filter::Function, warn::Function, f::Function, typs)
   end
 end
 
-function tracewarn_static(filter::Function, f::Function, typs)
-  call = nothing
-  function warn(w)
-    if (w.f, w.a) != call
-      call = (w.f, w.a)
-      meth = method(w.f)
-      print_with_color(:yellow, method_expr(call...),
-      " at $(meth.file):$(meth.line)", '\n')
-    end
-    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
-  end
-  trace_static(filter, warn, f, typs)
-end
-
-tracewarn_static(f::Function, typs) = tracewarn_static((_) -> true, f, typs)
+warntrace_static(filter::Function, f::Function, typs) = trace_static(filter, warning_printer(), f, typs)
+warntrace_static(f::Function, typs) = warntrace_static((_) -> true, f, typs)
 
 @eval begin
   macro trace_static(ex0)
-    Base.gen_call_with_extracted_types($(Expr(:quote, :tracewarn_static)), ex0)
+    Base.gen_call_with_extracted_types($(Expr(:quote, :warntrace_static)), ex0)
   end
 
   macro trace_static(filter, ex0)
-    expr = Base.gen_call_with_extracted_types($(Expr(:quote, :tracewarn_static)), ex0)
+    expr = Base.gen_call_with_extracted_types($(Expr(:quote, :warntrace_static)), ex0)
     insert!(expr.args, 2, esc(filter))
     expr
   end

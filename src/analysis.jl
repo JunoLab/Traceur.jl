@@ -19,7 +19,7 @@ DynamicCall(f, a...) = DynamicCall{typeof(f),typeof(a)}(f, a...)
 argtypes(c::DynamicCall) = Base.typesof(c.a...)
 types(c::DynamicCall) = (typeof(c.f), argtypes(c).parameters...)
 method(c::DynamicCall) = which(c.f, argtypes(c))
-method_expr(c::DynamicCall) = method_expr(f, argtypes(c))
+method_expr(c::DynamicCall) = method_expr(c.f, argtypes(c))
 
 function code(c::DynamicCall; optimize = false)
   codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
@@ -73,14 +73,25 @@ rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
 rebuild(code, x::SlotNumber) = code.slotnames[x.id]
 
 struct Warning
-  f
-  a::Type{<:Tuple}
+  call::Call
   line::Int
   message::String
 end
 
-Warning(c::Call, line, message) = Warning(c.f, argtypes(c), line, message)
-Warning(meth, message) = Warning(meth, -1, message)
+Warning(call, message) = Warning(call, -1, message)
+
+function warning_printer()
+  call = nothing
+  (w) -> begin
+    if w.call != call
+      call = w.call
+      meth = method(w.call)
+      print_with_color(:yellow, method_expr(call),
+      " at $(meth.file):$(meth.line)", '\n')
+    end
+    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
+  end
+end
 
 # global variables
 
