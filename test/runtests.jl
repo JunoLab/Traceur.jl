@@ -1,4 +1,4 @@
-using Traceur: warnings
+using Traceur: warnings, @trace
 using Base.Test
 
 warns_for(ws, x) = any(w -> contains(w.message, x), ws)
@@ -34,5 +34,7 @@ f(x) = x+y
 
 ws = warnings(() -> f(1))
 @test warns_for(ws, "global", "dispatch", "returns")
+
+@test_nowarn @trace naive_sum(1.0)
 
 end
