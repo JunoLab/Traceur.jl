@@ -37,12 +37,7 @@ argtypes(c::StaticCall) = Tuple{c.method_instance.specTypes.parameters[2:end]...
 types(c::StaticCall) = c.method_instance.specTypes
 method(c::StaticCall) = c.method_instance.def
 
-function method_expr(c::StaticCall)
-  name = GlobalRef(method(c).module, method(c).name)
-  args = join(["::$typ" for typ in argtypes(c)], ", ")
-  # TODO can't return a nice expr for types without args. string will do for now
-  "$name($args)"
-end
+method_expr(c::StaticCall) = method_expr(method(c).name, argtypes(c))
 
 function code(c::StaticCall; optimize = false)
   # TODO static call graph can only be computed with optimize=true, so analyzing with optimized=false will skip inlined methods
