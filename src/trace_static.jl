@@ -120,3 +120,9 @@ warntrace_static(f::Function, typs) = warntrace_static((_) -> true, f, typs)
     expr
   end
 end
+
+function warnings_static(f)
+  warnings = Warning[]
+  trace_static((_) -> true, w -> push!(warnings, w), f, ())
+  return warnings
+end
