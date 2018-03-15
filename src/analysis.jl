@@ -1,5 +1,13 @@
 abstract type Call end
 
+method_expr(f, Ts::Type{<:Tuple}) =
+  :($f($([:(::$T) for T in Ts.parameters]...)))
+
+function loc(c::Call)
+  meth = method(c)
+  "$(meth.file):$(meth.line)"
+end
+
 struct DynamicCall{F,A} <: Call
   f::F
   a::A
@@ -10,23 +18,35 @@ DynamicCall(f, a...) = DynamicCall{typeof(f),typeof(a)}(f, a...)
 
 argtypes(c::DynamicCall) = Base.typesof(c.a...)
 types(c::DynamicCall) = (typeof(c.f), argtypes(c).parameters...)
-
 method(c::DynamicCall) = which(c.f, argtypes(c))
-
-method_expr(f, Ts::Type{<:Tuple}) =
-  :($f($([:(::$T) for T in Ts.parameters]...)))
-
 method_expr(c::DynamicCall) = method_expr(f, argtypes(c))
-
-function loc(c::DynamicCall)
-  meth = method(c)
-  "$(meth.file):$(meth.line)"
-end
 
 function code(c::DynamicCall; optimize = false)
   codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
+  linearize!(codeinfo[1])
+  return codeinfo
+end
+
+struct StaticCall <: Call
+  method_instance::MethodInstance
+end
+
+argtypes(c::StaticCall) = Tuple{c.method_instance.specTypes.parameters[2:end]...}
+types(c::StaticCall) = c.method_instance.specTypes
+method(c::StaticCall) = c.method_instance.def
+
+function method_expr(c::StaticCall)
+  name = GlobalRef(method(c).module, method(c).name)
+  args = join(["::$typ" for typ in argtypes(c)], ", ")
+  # TODO can't return a nice expr for types without args. string will do for now
+  "$name($args)"
+end
+
+function code(c::StaticCall; optimize = false)
+  # TODO static call graph can only be computed with optimize=true, so analyzing with optimized=false will skip inlined methods
+  codeinfo = get_code_info(c.method_instance, optimize=true)
   linearize!(codeinfo[1])
   return codeinfo
 end
