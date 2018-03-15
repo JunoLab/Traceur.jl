@@ -10,7 +10,7 @@ isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
 const ignored_methods = [@which((1,2)[1])]
 
 @primitive ctx::Trace function (f::Any)(args...)
-  C, T = Call(f, args...), typeof.((f, args...))
+  C, T = DynamicCall(f, args...), typeof.((f, args...))
   (T ∈ ctx.seen || isprimitive(f) ||
     method(C) ∈ ignored_methods ||
     method(C).module ∈ [Core, Core.Inference]) && return f(args...)

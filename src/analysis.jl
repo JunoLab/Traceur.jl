@@ -1,27 +1,29 @@
-struct Call{F,A}
+abstract type Call end
+
+struct DynamicCall{F,A} <: Call
   f::F
   a::A
-  Call{F,A}(f,a...) where {F,A} = new(f, a)
+  DynamicCall{F,A}(f,a...) where {F,A} = new(f, a)
 end
 
-Call(f, a...) = Call{typeof(f),typeof(a)}(f, a...)
+DynamicCall(f, a...) = DynamicCall{typeof(f),typeof(a)}(f, a...)
 
-argtypes(c::Call) = Base.typesof(c.a...)
-types(c::Call) = (typeof(c.f), argtypes(c).parameters...)
+argtypes(c::DynamicCall) = Base.typesof(c.a...)
+types(c::DynamicCall) = (typeof(c.f), argtypes(c).parameters...)
 
-method(c::Call) = which(c.f, argtypes(c))
+method(c::DynamicCall) = which(c.f, argtypes(c))
 
 method_expr(f, Ts::Type{<:Tuple}) =
   :($f($([:(::$T) for T in Ts.parameters]...)))
 
-method_expr(c::Call) = method_expr(f, argtypes(c))
+method_expr(c::DynamicCall) = method_expr(f, argtypes(c))
 
-function loc(c::Call)
+function loc(c::DynamicCall)
   meth = method(c)
   "$(meth.file):$(meth.line)"
 end
 
-function code(c::Call; optimize = false)
+function code(c::DynamicCall; optimize = false)
   codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
