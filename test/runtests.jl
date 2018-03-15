@@ -38,4 +38,6 @@ ws = warnings(() -> f(1))
 
 @test_nowarn @trace naive_sum(1.0)
 
+@test_nowarn @trace_static naive_sum(1.0)
+
 end
