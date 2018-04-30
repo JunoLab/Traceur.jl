@@ -1,30 +1,47 @@
-struct Call{F,A}
-  f::F
-  a::A
-  Call{F,A}(f,a...) where {F,A} = new(f, a)
-end
-
-Call(f, a...) = Call{typeof(f),typeof(a)}(f, a...)
-
-argtypes(c::Call) = Base.typesof(c.a...)
-types(c::Call) = (typeof(c.f), argtypes(c).parameters...)
-
-method(c::Call) = which(c.f, argtypes(c))
+abstract type Call end
 
 method_expr(f, Ts::Type{<:Tuple}) =
   :($f($([:(::$T) for T in Ts.parameters]...)))
-
-method_expr(c::Call) = method_expr(f, argtypes(c))
 
 function loc(c::Call)
   meth = method(c)
   "$(meth.file):$(meth.line)"
 end
 
-function code(c::Call; optimize = false)
+struct DynamicCall{F,A} <: Call
+  f::F
+  a::A
+  DynamicCall{F,A}(f,a...) where {F,A} = new(f, a)
+end
+
+DynamicCall(f, a...) = DynamicCall{typeof(f),typeof(a)}(f, a...)
+
+argtypes(c::DynamicCall) = Base.typesof(c.a...)
+types(c::DynamicCall) = (typeof(c.f), argtypes(c).parameters...)
+method(c::DynamicCall) = which(c.f, argtypes(c))
+method_expr(c::DynamicCall) = method_expr(c.f, argtypes(c))
+
+function code(c::DynamicCall; optimize = false)
   codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
+  linearize!(codeinfo[1])
+  return codeinfo
+end
+
+struct StaticCall <: Call
+  method_instance::MethodInstance
+end
+
+argtypes(c::StaticCall) = Tuple{c.method_instance.specTypes.parameters[2:end]...}
+types(c::StaticCall) = c.method_instance.specTypes
+method(c::StaticCall) = c.method_instance.def
+
+method_expr(c::StaticCall) = method_expr(method(c).name, argtypes(c))
+
+function code(c::StaticCall; optimize = false)
+  # TODO static call graph can only be computed with optimize=true, so analyzing with optimized=false will skip inlined methods
+  codeinfo = get_code_info(c.method_instance, optimize=true)
   linearize!(codeinfo[1])
   return codeinfo
 end
@@ -51,14 +68,25 @@ rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
 rebuild(code, x::SlotNumber) = code.slotnames[x.id]
 
 struct Warning
-  f
-  a::Type{<:Tuple}
+  call::Call
   line::Int
   message::String
 end
 
-Warning(c::Call, line, message) = Warning(c.f, argtypes(c), line, message)
-Warning(meth, message) = Warning(meth, -1, message)
+Warning(call, message) = Warning(call, -1, message)
+
+function warning_printer()
+  call = nothing
+  (w) -> begin
+    if w.call != call
+      call = w.call
+      meth = method(w.call)
+      print_with_color(:yellow, method_expr(call),
+      " at $(meth.file):$(meth.line)", '\n')
+    end
+    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
+  end
+end
 
 # global variables
 

@@ -10,7 +10,7 @@ isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
 const ignored_methods = [@which((1,2)[1])]
 
 @primitive ctx::Trace function (f::Any)(args...)
-  C, T = Call(f, args...), typeof.((f, args...))
+  C, T = DynamicCall(f, args...), typeof.((f, args...))
   (T ∈ ctx.seen || isprimitive(f) ||
     method(C) ∈ ignored_methods ||
     method(C).module ∈ [Core, Core.Inference]) && return f(args...)
@@ -22,19 +22,7 @@ end
 
 trace(w, f) = overdub(Trace(w), f)
 
-function warntrace(f)
-  call = nothing
-  function warn(w)
-    if (w.f, w.a) != call
-      call = (w.f, w.a)
-      method = which(w.f, w.a)
-      print_with_color(:yellow, method_expr(call...),
-                       " at $(method.file):$(method.line)", '\n')
-    end
-    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
-  end
-  trace(warn, f)
-end
+warntrace(f) = trace(warning_printer(), f)
 
 function warnings(f)
   warnings = Warning[]
