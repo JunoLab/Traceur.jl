@@ -92,12 +92,11 @@ end
 function globals(warn, call)
   c = code(call)[1]
   eachline(c) do line, ex
-    # (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
-    # ref = ex.args[2]
     ex isa Expr || return
-    for ref in ex.args[2:end]
-      (ref isa GlobalRef && !isconst(ref.mod, ref.name)) ||
-        warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
+    for ref in ex.args
+      ref isa GlobalRef || continue
+      isconst(ref.mod, ref.name) && continue
+      warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
     end
   end
 end
@@ -106,7 +105,6 @@ end
 
 function fields(warn, call)
   c = code(call)[1]
-  @show c
   eachline(c) do line, x
     (isexpr(x, :(=)) && isexpr(x.args[2], :call) &&
      rebuild(c, x.args[2].args[1]) == GlobalRef(Core,:getfield)) ||
@@ -179,5 +177,5 @@ function analyse(warn, call)
   # fields(warn, call)
   # locals(warn, call)
   # dispatch(warn, call)
-  rettype(warn, call)
+  # rettype(warn, call)
 end
