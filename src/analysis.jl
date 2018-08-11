@@ -25,26 +25,26 @@ function code(c::DynamicCall; optimize = false)
   codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
-  linearize!(codeinfo[1])
+  # linearize!(codeinfo[1])
   return codeinfo
 end
 
-struct StaticCall <: Call
-  method_instance::MethodInstance
-end
-
-argtypes(c::StaticCall) = Tuple{c.method_instance.specTypes.parameters[2:end]...}
-types(c::StaticCall) = c.method_instance.specTypes
-method(c::StaticCall) = c.method_instance.def
-
-method_expr(c::StaticCall) = method_expr(method(c).name, argtypes(c))
-
-function code(c::StaticCall; optimize = false)
-  # TODO static call graph can only be computed with optimize=true, so analyzing with optimized=false will skip inlined methods
-  codeinfo = get_code_info(c.method_instance, optimize=true)
-  linearize!(codeinfo[1])
-  return codeinfo
-end
+# struct StaticCall <: Call
+#   method_instance::MethodInstance
+# end
+#
+# argtypes(c::StaticCall) = Tuple{c.method_instance.specTypes.parameters[2:end]...}
+# types(c::StaticCall) = c.method_instance.specTypes
+# method(c::StaticCall) = c.method_instance.def
+#
+# method_expr(c::StaticCall) = method_expr(method(c).name, argtypes(c))
+#
+# function code(c::StaticCall; optimize = false)
+#   # TODO static call graph can only be computed with optimize=true, so analyzing with optimized=false will skip inlined methods
+#   codeinfo = get_code_info(c.method_instance, optimize=true)
+#   linearize!(codeinfo[1])
+#   return codeinfo
+# end
 
 function eachline(f, code, line = -1)
   for l in code.code
@@ -59,13 +59,13 @@ end
 exprtype(code, x) = typeof(x)
 exprtype(code, x::Expr) = x.typ
 exprtype(code, x::QuoteNode) = typeof(x.value)
-exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
-exprtype(code, x::SlotNumber) = code.slottypes[x.id]
+# exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
+# exprtype(code, x::SlotNumber) = code.slottypes[x.id]
 
 rebuild(code, x) = x
 rebuild(code, x::QuoteNode) = x.value
-rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
-rebuild(code, x::SlotNumber) = code.slotnames[x.id]
+# rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
+# rebuild(code, x::SlotNumber) = code.slotnames[x.id]
 
 struct Warning
   call::Call
@@ -81,8 +81,7 @@ function warning_printer()
     if w.call != call
       call = w.call
       meth = method(w.call)
-      print_with_color(:yellow, method_expr(call),
-      " at $(meth.file):$(meth.line)", '\n')
+      printstyled(method_expr(call), " at $(meth.file):$(meth.line)", '\n', color=:yellow)
     end
     println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
   end
@@ -93,10 +92,13 @@ end
 function globals(warn, call)
   c = code(call)[1]
   eachline(c) do line, ex
-    (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
-    ref = ex.args[2]
-    isconst(ref.mod, ref.name) ||
-      warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
+    # (isexpr(ex, :(=)) && isexpr(ex.args[2], GlobalRef)) || return
+    # ref = ex.args[2]
+    ex isa Expr || return
+    for ref in ex.args[2:end]
+      (ref isa GlobalRef && !isconst(ref.mod, ref.name)) ||
+        warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
+    end
   end
 end
 
@@ -104,15 +106,16 @@ end
 
 function fields(warn, call)
   c = code(call)[1]
+  @show c
   eachline(c) do line, x
     (isexpr(x, :(=)) && isexpr(x.args[2], :call) &&
      rebuild(c, x.args[2].args[1]) == GlobalRef(Core,:getfield)) ||
       return
     x, field = x.args[2].args[2:3]
     x, x_expr, field = exprtype(c, x), rebuild(c, x), rebuild(c, field)
-    (isleaftype(x) && !(x.name.wrapper == Type) && field isa Symbol) ||
+    (isconcretetype(x) && !(x.name.wrapper == Type) && field isa Symbol) ||
       return
-    isleaftype(fieldtype(x, field)) || warn(call, line, "field $x_expr.$field::$(fieldtype(x, field)), $x_expr::$x")
+    isconcretetype(fieldtype(x, field)) || warn(call, line, "field $x_expr.$field::$(fieldtype(x, field)), $x_expr::$x")
   end
 end
 
@@ -133,7 +136,7 @@ function locals(warn, call)
   c = code(call)[1]
   as = assignments(c, l)
   for (x, as) in as
-    (length(unique(map(x->x[2],as))) == 1 && isleaftype(as[1][2])) && continue
+    (length(unique(map(x->x[2],as))) == 1 && isconcretetype(as[1][2])) && continue
     var = c.slotnames[x.id]
     for (l, t) in as
       warn(call, l, "$var is assigned as $t")
@@ -143,7 +146,7 @@ end
 
 # dynamic dispatch
 
-function rebuild(code, x::SSAValue)
+function rebuild(code, x)
   for ex in code.code
     isexpr(ex, :(=)) && ex.args[1] == x && return rebuild(code, ex.args[2])
   end
@@ -166,15 +169,15 @@ end
 
 function rettype(warn, call)
   c, out = code(call)
-  isleaftype(out) || warn(call, "returns $out")
+  isconcretetype(out) || warn(call, "returns $out")
 end
 
 # overall analysis
 
 function analyse(warn, call)
   globals(warn, call)
-  fields(warn, call)
-  locals(warn, call)
-  dispatch(warn, call)
+  # fields(warn, call)
+  # locals(warn, call)
+  # dispatch(warn, call)
   rettype(warn, call)
 end
