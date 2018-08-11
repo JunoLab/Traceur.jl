@@ -59,13 +59,13 @@ end
 exprtype(code, x) = typeof(x)
 exprtype(code, x::Expr) = x.typ
 exprtype(code, x::QuoteNode) = typeof(x.value)
-# exprtype(code, x::SSAValue) = code.ssavaluetypes[x.id+1]
-# exprtype(code, x::SlotNumber) = code.slottypes[x.id]
+exprtype(code, x::Core.SSAValue) = code.ssavaluetypes[x.id+1]
+# exprtype(code, x::Core.SlotNumber) = code.slottypes[x.id]
 
 rebuild(code, x) = x
 rebuild(code, x::QuoteNode) = x.value
-# rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
-# rebuild(code, x::SlotNumber) = code.slotnames[x.id]
+rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
+rebuild(code, x::Core.SlotNumber) = code.slotnames[x.id]
 
 struct Warning
   call::Call
@@ -122,7 +122,7 @@ end
 function assignments(code, l = -1)
   assigns = Dict()
   eachline(code, l) do line, ex
-    (isexpr(ex, :(=)) && isexpr(ex.args[1], SlotNumber)) || return
+    (isexpr(ex, :(=)) && isexpr(ex.args[1], Core.SlotNumber)) || return
     typ = exprtype(code, ex.args[2])
     push!(get!(assigns, ex.args[1], []), (line, typ))
   end
@@ -132,14 +132,22 @@ end
 function locals(warn, call)
   l = method(call).line
   c = code(call)[1]
-  as = assignments(c, l)
-  for (x, as) in as
-    (length(unique(map(x->x[2],as))) == 1 && isconcretetype(as[1][2])) && continue
-    var = c.slotnames[x.id]
-    for (l, t) in as
-      warn(call, l, "$var is assigned as $t")
+
+  for (i, ssatyp) in enumerate(c.ssavaluetypes)
+    ssatyp isa DataType || continue
+    if !(isconcretetype(ssatyp) || issmallunion(ssatyp))
+      warn(call, l, "$(c.code[i]) evaluates to $(ssatyp)")
     end
   end
+
+  # as = assignments(c, l)
+  # for (x, as) in as
+  #   (length(unique(map(x->x[2],as))) == 1 && isconcretetype(as[1][2])) && continue
+  #   var = c.slotnames[x.id]
+  #   for (l, t) in as
+  #     warn(call, l, "$var is assigned as $t")
+  #   end
+  # end
 end
 
 # dynamic dispatch
@@ -165,17 +173,26 @@ end
 
 # return type
 
+function issmallunion(t)
+  ts = Base.uniontypes(t)
+  length(ts) == 1 && isconcretetype(ts) && return true
+  length(ts) > 2 && return false
+  all(x -> isbitstype(x), ts) && return true
+  return false
+end
+
 function rettype(warn, call)
   c, out = code(call)
-  isconcretetype(out) || warn(call, "returns $out")
+  (!issmallunion(out) || !isconcretetype(out)) &&
+    warn(call, "returns $out")
 end
 
 # overall analysis
 
 function analyse(warn, call)
   globals(warn, call)
-  # fields(warn, call)
   # locals(warn, call)
-  # dispatch(warn, call)
-  # rettype(warn, call)
+  fields(warn, call)
+  dispatch(warn, call)
+  rettype(warn, call)
 end
