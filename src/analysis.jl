@@ -78,12 +78,9 @@ Warning(call, message) = Warning(call, -1, message)
 function warning_printer()
   call = nothing
   (w) -> begin
-    if w.call != call
-      call = w.call
-      meth = method(w.call)
-      printstyled(method_expr(call), " at $(meth.file):$(meth.line)", '\n', color=:yellow)
-    end
-    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
+    meth = method(w.call)
+    # TODO: figure out file of call, and then print `method_expr(call)`
+    @safe_warn w.message _file=String(meth.file) _line=w.line method=meth
   end
 end
 
