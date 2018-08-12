@@ -149,12 +149,7 @@ end
 
 # dynamic dispatch
 
-function rebuild(code, x)
-  for ex in code.code
-    isexpr(ex, :(=)) && ex.args[1] == x && return rebuild(code, ex.args[2])
-  end
-  error("$x not found")
-end
+rebuild(code, x::Core.SSAValue) = rebuild(code, code.code[x.id])
 
 function dispatch(warn, call)
   c = code(call, optimize = true)[1]
