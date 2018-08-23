@@ -78,12 +78,9 @@ Warning(call, message) = Warning(call, -1, message)
 function warning_printer()
   call = nothing
   (w) -> begin
-    if w.call != call
-      call = w.call
-      meth = method(w.call)
-      printstyled(method_expr(call), " at $(meth.file):$(meth.line)", '\n', color=:yellow)
-    end
-    println("  ", w.message, w.line != -1 ? " at line $(w.line)" : "")
+    meth = method(w.call)
+    # TODO: figure out file of call, and then print `method_expr(call)`
+    @safe_warn w.message _file=String(meth.file) _line=w.line method=meth
   end
 end
 
@@ -152,12 +149,7 @@ end
 
 # dynamic dispatch
 
-function rebuild(code, x)
-  for ex in code.code
-    isexpr(ex, :(=)) && ex.args[1] == x && return rebuild(code, ex.args[2])
-  end
-  error("$x not found")
-end
+rebuild(code, x::Core.SSAValue) = rebuild(code, code.code[x.id])
 
 function dispatch(warn, call)
   c = code(call, optimize = true)[1]

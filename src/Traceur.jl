@@ -8,6 +8,7 @@ import Core.MethodInstance
 
 export @trace, @trace_static
 
+include("util.jl")
 include("analysis.jl")
 include("trace.jl")
 # include("trace_static.jl")
