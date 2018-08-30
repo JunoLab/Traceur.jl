@@ -47,24 +47,22 @@ end
 # end
 
 function eachline(f, code, line = -1)
-  for l in code.code
-    if l isa LineNumberNode
-      line = l.line
-    else
-      f(line, l)
-    end
+  for (i, l) in enumerate(code.code)
+    line = code.linetable[code.codelocs[i]].line
+    f(line, l)
   end
 end
 
 exprtype(code, x) = typeof(x)
-exprtype(code, x::Expr) = x.typ
+exprtype(code, x::Expr) = Union{}
+exprtype(code, x::Core.TypedSlot) = x.typ
 exprtype(code, x::QuoteNode) = typeof(x.value)
 exprtype(code, x::Core.SSAValue) = code.ssavaluetypes[x.id+1]
 # exprtype(code, x::Core.SlotNumber) = code.slottypes[x.id]
 
 rebuild(code, x) = x
 rebuild(code, x::QuoteNode) = x.value
-rebuild(code, x::Expr) = Expr(x.head, rebuild.(code, x.args)...)
+rebuild(code, x::Expr) = Expr(x.head, rebuild.(Ref(code), x.args))
 rebuild(code, x::Core.SlotNumber) = code.slotnames[x.id]
 
 struct Warning
@@ -92,6 +90,7 @@ function globals(warn, call)
     ex isa Expr || return
     for ref in ex.args
       ref isa GlobalRef || continue
+      # ref.mod == Main && @show ref
       isconst(ref.mod, ref.name) && continue
       warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
     end
@@ -118,33 +117,30 @@ end
 
 function assignments(code, l = -1)
   assigns = Dict()
+  idx = 0
   eachline(code, l) do line, ex
+    idx += 1
     (isexpr(ex, :(=)) && isexpr(ex.args[1], Core.SlotNumber)) || return
-    typ = exprtype(code, ex.args[2])
+    typ = code.ssavaluetypes[idx]
+    if typ isa Core.Compiler.Const
+      typ = typeof(typ.val)
+    end
     push!(get!(assigns, ex.args[1], []), (line, typ))
   end
   return assigns
 end
 
 function locals(warn, call)
-  l = method(call).line
   c = code(call)[1]
-
-  for (i, ssatyp) in enumerate(c.ssavaluetypes)
-    ssatyp isa DataType || continue
-    if !(isconcretetype(ssatyp) || issmallunion(ssatyp))
-      warn(call, l, "$(c.code[i]) evaluates to $(ssatyp)")
+  as = assignments(c)
+  for (x, as) in as
+    (length(unique(map(x->x[2],as))) == 1 && isconcretetype(as[1][2])) && continue
+    var = c.slotnames[x.id]
+    startswith(string(var), '#') && continue
+    for (l, t) in as
+      warn(call, l, "$var is assigned as $t")
     end
   end
-
-  # as = assignments(c, l)
-  # for (x, as) in as
-  #   (length(unique(map(x->x[2],as))) == 1 && isconcretetype(as[1][2])) && continue
-  #   var = c.slotnames[x.id]
-  #   for (l, t) in as
-  #     warn(call, l, "$var is assigned as $t")
-  #   end
-  # end
 end
 
 # dynamic dispatch
@@ -154,12 +150,13 @@ rebuild(code, x::Core.SSAValue) = rebuild(code, code.code[x.id])
 function dispatch(warn, call)
   c = code(call, optimize = true)[1]
   eachline(c, method(call).line) do line, ex
+    # this heuristic doesn't work very well anymore
     isexpr(ex, :(=)) && (ex = ex.args[2])
     isexpr(ex, :call) || return
     callex = rebuild(c, ex)
     f = callex.args[1]
     f isa GlobalRef && isprimitive(getfield(f.mod, f.name)) && return
-    warn(call, line, "dynamic dispatch to $(callex)")
+    warn(call, line, string("dynamic dispatch to `", string(f[1]), "(", join(f[2:end], ", "), ")`"))
   end
 end
 
@@ -173,9 +170,14 @@ function issmallunion(t)
   return false
 end
 
+istype(::Type{T}) where T = true
+istype(::Union) = false
+istype(x) = false
+
 function rettype(warn, call)
   c, out = code(call)
-  (!issmallunion(out) || !isconcretetype(out)) &&
+
+  (issmallunion(out) || isconcretetype(out) || istype(out)) ||
     warn(call, "returns $out")
 end
 
@@ -183,8 +185,8 @@ end
 
 function analyse(warn, call)
   globals(warn, call)
-  # locals(warn, call)
+  locals(warn, call)
   fields(warn, call)
-  dispatch(warn, call)
+  # dispatch(warn, call)
   rettype(warn, call)
 end
