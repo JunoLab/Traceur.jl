@@ -25,7 +25,6 @@ function code(c::DynamicCall; optimize = false)
   codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
-  # linearize!(codeinfo[1])
   return codeinfo
 end
 
@@ -54,7 +53,6 @@ function eachline(f, code, line = -1)
 end
 
 exprtype(code, x) = typeof(x)
-exprtype(code, x::Expr) = Union{}
 exprtype(code, x::Core.TypedSlot) = x.typ
 exprtype(code, x::QuoteNode) = typeof(x.value)
 exprtype(code, x::Core.SSAValue) = code.ssavaluetypes[x.id+1]
@@ -62,7 +60,7 @@ exprtype(code, x::Core.SSAValue) = code.ssavaluetypes[x.id+1]
 
 rebuild(code, x) = x
 rebuild(code, x::QuoteNode) = x.value
-rebuild(code, x::Expr) = Expr(x.head, rebuild.(Ref(code), x.args))
+rebuild(code, x::Expr) = Expr(x.head, rebuild.(Ref(code), x.args)...)
 rebuild(code, x::Core.SlotNumber) = code.slotnames[x.id]
 
 struct Warning
@@ -90,7 +88,6 @@ function globals(warn, call)
     ex isa Expr || return
     for ref in ex.args
       ref isa GlobalRef || continue
-      # ref.mod == Main && @show ref
       isconst(ref.mod, ref.name) && continue
       warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
     end

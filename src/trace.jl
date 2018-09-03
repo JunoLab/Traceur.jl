@@ -35,7 +35,7 @@
 # end
 
 
-using Cassette
+using Cassette, InteractiveUtils
 
 Cassette.@context TraceurCtx
 
@@ -48,11 +48,13 @@ Trace(w) = Trace(Set(), w)
 
 isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
 
+const ignored_methods = [@which((1,2)[1])]
+
 function Cassette.prehook(ctx::TraceurCtx, f, args...)
   C, T = DynamicCall(f, args...), typeof.((f, args))
   tra = ctx.metadata
-  T ∈ tra.seen || isprimitive(f) && return nothing
-  push!(tra.seen, T)
+  (T ∈ tra.seen || isprimitive(f) || method(C) ∈ ignored_methods ||
+    method(C).module ∈ (Core, Core.Compiler)) && return nothing
 
   analyse((a...) -> tra.warn(Warning(a...)), C)
   return nothing
