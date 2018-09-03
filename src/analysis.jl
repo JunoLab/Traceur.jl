@@ -47,7 +47,9 @@ end
 
 function eachline(f, code, line = -1)
   for (i, l) in enumerate(code.code)
-    line = code.linetable[code.codelocs[i]].line
+    ind = code.codelocs[i]
+    ind = clamp(ind, 1, length(code.linetable))
+    line = code.linetable[ind].line
     f(line, l)
   end
 end
@@ -146,14 +148,15 @@ rebuild(code, x::Core.SSAValue) = rebuild(code, code.code[x.id])
 
 function dispatch(warn, call)
   c = code(call, optimize = true)[1]
-  eachline(c, method(call).line) do line, ex
+  eachline(c) do line, ex
     # this heuristic doesn't work very well anymore
     isexpr(ex, :(=)) && (ex = ex.args[2])
     isexpr(ex, :call) || return
     callex = rebuild(c, ex)
     f = callex.args[1]
     f isa GlobalRef && isprimitive(getfield(f.mod, f.name)) && return
-    warn(call, line, string("dynamic dispatch to `", string(f[1]), "(", join(f[2:end], ", "), ")`"))
+    # warn(call, line, string("dynamic dispatch to `", string(f[1]), "(", join(f[2:end], ", "), ")`"))
+    warn(call, line, string("dynamic dispatch to ", callex))
   end
 end
 
@@ -184,6 +187,6 @@ function analyse(warn, call)
   globals(warn, call)
   locals(warn, call)
   fields(warn, call)
-  # dispatch(warn, call)
+  dispatch(warn, call)
   rettype(warn, call)
 end
