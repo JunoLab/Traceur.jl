@@ -177,8 +177,9 @@ istype(x) = false
 function rettype(warn, call)
   c, out = code(call)
 
-  (issmallunion(out) || isconcretetype(out) || istype(out)) ||
+  if out == Any || !(issmallunion(out) || isconcretetype(out) || istype(out))
     warn(call, "returns $out")
+  end
 end
 
 # overall analysis

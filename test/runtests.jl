@@ -24,26 +24,20 @@ function test(warnings)
   ws = warnings(() -> naive_relu(1))
   @test isempty(ws)
 
-  # returns a small union, so we shouldn't warn for that
   ws = warnings(() -> naive_relu(1.0))
-  @test isempty(ws)
-  # @test warns_for(ws, "returns")
+  @test warns_for(ws, "returns")
 
   ws = warnings(() -> randone())
   @test warns_for(ws, "returns")
 
-  ws = warnings(() -> naive_sum(1))
+  ws = warnings(() -> naive_sum([1]))
   @test isempty(ws)
 
-  # returns a small union, so we shouldn't warn for that
-  # dispatch pass is broken
-  ws = warnings(() -> naive_sum(1.0))
-  @test warns_for(ws, "assigned", #="dispatch", "returns"=#)
+  ws = warnings(() -> naive_sum([1.0]))
+  @test warns_for(ws, "assigned", "dispatch", "returns")
 
-  # returns a small union, so we shouldn't warn for that
-  # dispatch pass is broken
   ws = warnings(() -> f(1))
-  @test warns_for(ws, "global", #="dispatch", "returns"=#)
+  @test warns_for(ws, "global", "dispatch", "returns")
 
   ws = warnings(() -> g(1))
   @test isempty(ws)
