@@ -163,7 +163,7 @@ function issmallunion(t)
   ts = Base.uniontypes(t)
   length(ts) == 1 && isconcretetype(ts) && return true
   length(ts) > 2 && return false
-  all(x -> isbitstype(x), ts) && return true
+  (Missing in ts || Nothing in ts) && return true
   return false
 end
 
