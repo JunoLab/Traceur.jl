@@ -18,6 +18,12 @@ function naive_sum(xs)
 end
 
 f(x) = x+y
+
+function f2(x)
+  foo = y
+  sin(x)+y
+end
+
 g(x) = x+cy
 
 function test(warnings)
@@ -34,9 +40,12 @@ function test(warnings)
   @test isempty(ws)
 
   ws = warnings(() -> naive_sum([1.0]))
-  @test warns_for(ws, "assigned", "dispatch", "returns")
+  @test warns_for(ws, "assigned", "returns")
 
   ws = warnings(() -> f(1))
+  @test warns_for(ws, "global", "dispatch", "returns")
+
+  ws = warnings(() -> f2(1))
   @test warns_for(ws, "global", "dispatch", "returns")
 
   ws = warnings(() -> g(1))

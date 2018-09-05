@@ -149,13 +149,11 @@ rebuild(code, x::Core.SSAValue) = rebuild(code, code.code[x.id])
 function dispatch(warn, call)
   c = code(call, optimize = true)[1]
   eachline(c) do line, ex
-    # this heuristic doesn't work very well anymore
     isexpr(ex, :(=)) && (ex = ex.args[2])
     isexpr(ex, :call) || return
     callex = rebuild(c, ex)
     f = callex.args[1]
-    f isa GlobalRef && isprimitive(getfield(f.mod, f.name)) && return
-    # warn(call, line, string("dynamic dispatch to `", string(f[1]), "(", join(f[2:end], ", "), ")`"))
+    (f isa GlobalRef && isprimitive(getfield(f.mod, f.name)) || isprimitive(f)) && return
     warn(call, line, string("dynamic dispatch to ", callex))
   end
 end
