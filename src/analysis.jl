@@ -48,8 +48,9 @@ end
 function eachline(f, code, line = -1)
   for (i, l) in enumerate(code.code)
     ind = code.codelocs[i]
-    ind = clamp(ind, 1, length(code.linetable))
-    line = code.linetable[ind].line
+    1 <= ind <=  length(code.linetable) ?
+      line = code.linetable[ind].line :
+      line = -1
     f(line, l)
   end
 end
@@ -74,11 +75,10 @@ end
 Warning(call, message) = Warning(call, -1, message)
 
 function warning_printer()
-  call = nothing
   (w) -> begin
     meth = method(w.call)
     # TODO: figure out file of call, and then print `method_expr(call)`
-    @safe_warn w.message _file=String(meth.file) _line=w.line method=meth
+    @safe_warn w.message _file=String(meth.file) _line=w.line _module=nothing
   end
 end
 
@@ -120,10 +120,7 @@ function assignments(code, l = -1)
   eachline(code, l) do line, ex
     idx += 1
     (isexpr(ex, :(=)) && isexpr(ex.args[1], Core.SlotNumber)) || return
-    typ = code.ssavaluetypes[idx]
-    if typ isa Core.Compiler.Const
-      typ = typeof(typ.val)
-    end
+    typ = Core.Compiler.widenconst(code.ssavaluetypes[idx])
     push!(get!(assigns, ex.args[1], []), (line, typ))
   end
   return assigns
@@ -133,7 +130,7 @@ function locals(warn, call)
   c = code(call)[1]
   as = assignments(c)
   for (x, as) in as
-    (length(unique(map(x->x[2],as))) == 1 && isconcretetype(as[1][2])) && continue
+    (length(unique(map(x->x[2],as))) == 1 && (isconcretetype(as[1][2]) || istype(as[1][2]))) && continue
     var = c.slotnames[x.id]
     startswith(string(var), '#') && continue
     for (l, t) in as
@@ -162,7 +159,7 @@ end
 
 function issmallunion(t)
   ts = Base.uniontypes(t)
-  length(ts) == 1 && isconcretetype(ts) && return true
+  length(ts) == 1 && isconcretetype(first(ts)) && return true
   length(ts) > 2 && return false
   (Missing in ts || Nothing in ts) && return true
   return false
@@ -176,7 +173,7 @@ function rettype(warn, call)
   c, out = code(call)
 
   if out == Any || !(issmallunion(out) || isconcretetype(out) || istype(out))
-    warn(call, "returns $out")
+    warn(call, method(call).line, "$(call.f) returns $out")
   end
 end
 
