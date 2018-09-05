@@ -91,6 +91,7 @@ function globals(warn, call)
     for ref in ex.args
       ref isa GlobalRef || continue
       isconst(ref.mod, ref.name) && continue
+      getfield(ref.mod, ref.name) isa Module && continue
       warn(call, line, "uses global variable $(ref.mod).$(ref.name)")
     end
   end
