@@ -1,3 +1,7 @@
+using Cassette, InteractiveUtils
+
+Cassette.@context TraceurCtx
+
 struct Trace
   seen::Set
   warn
@@ -9,18 +13,17 @@ isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
 
 const ignored_methods = [@which((1,2)[1])]
 
-@primitive ctx::Trace function (f::Any)(args...)
-  C, T = DynamicCall(f, args...), typeof.((f, args...))
-  (T ∈ ctx.seen || isprimitive(f) ||
-    method(C) ∈ ignored_methods ||
-    method(C).module ∈ [Core, Core.Inference]) && return f(args...)
-  push!(ctx.seen, T)
-  result = overdub(ctx, f, args...)
-  analyse((a...) -> ctx.warn(Warning(a...)), C)
-  return result
+function Cassette.posthook(ctx::TraceurCtx, out, f, args...)
+  C, T = DynamicCall(f, args...), typeof.((f, args))
+  tra = ctx.metadata
+  (T ∈ tra.seen || isprimitive(f) || method(C) ∈ ignored_methods ||
+    method(C).module ∈ (Core, Core.Compiler)) && return nothing
+
+  analyse((a...) -> tra.warn(Warning(a...)), C)
+  return nothing
 end
 
-trace(w, f) = overdub(Trace(w), f)
+trace(w, f) = Cassette.overdub(TraceurCtx(metadata=Trace(w)), f)
 
 warntrace(f) = trace(warning_printer(), f)
 
