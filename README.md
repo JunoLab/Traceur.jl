@@ -44,8 +44,6 @@ f(::Int64) at none:1
 2
 ```
 
-Note that if you see errors when using this package, you may need to run `Pkg.checkout("ASTInterpreter2")`.
-
 ### Mechanics
 
 The heavily lifting is done by [`analyse`](https://github.com/MikeInnes/Traceur.jl/blob/a107a2d9646675441e4e7c8d5f3be14d8bae86ad/src/analysis.jl#L127), which takes a `Call` (essentially a `(f, args...)` tuple for each function called in the code). Most of the analysis steps work by retrieving the `code_typed` of the function, inspecting it for issues and emitting any warnings.
