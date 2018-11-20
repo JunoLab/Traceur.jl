@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/MikeInnes/Traceur.jl.svg?branch=master)](https://travis-ci.org/MikeInnes/Traceur.jl)
 
-Traceur is essentially a codified version of the [Julia performance tips](https://docs.julialang.org/en/stable/manual/performance-tips/). You run your code, it tells you about any obvious performance traps.
+Traceur is essentially a codified version of the [Julia performance tips](https://docs.julialang.org/en/v1/manual/performance-tips/). You run your code, it tells you about any obvious performance traps.
 
 ```julia
 julia> using Traceur
