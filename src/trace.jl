@@ -38,3 +38,9 @@ end
 macro trace(ex)
   :(warntrace(() -> $(esc(ex))))
 end
+
+assert_trace(f) = trace((w)->@assert(false, w.message), f)
+
+macro assert_trace(ex)
+  :(assert_trace(() -> $(esc(ex))))
+end
