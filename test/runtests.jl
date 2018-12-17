@@ -52,6 +52,12 @@ function test(warnings)
   @test isempty(ws)
 end
 
+x = 1
+
+my_add(y) = x + y
+
+@should_not_warn my_stable_add(y) = my_add(y)
+
 @testset "Traceur" begin
   @testset "Dynamic" begin
     test(Traceur.warnings)
@@ -61,4 +67,7 @@ end
   # end
   # @test_nowarn @trace naive_sum(1.0)
   # @test_nowarn @trace_static naive_sum(1.0)
+
+  @test_nowarn @check my_add(1)
+  @test_throws AssertionError @check my_stable_add(1)
 end
