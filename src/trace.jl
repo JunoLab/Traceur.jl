@@ -4,25 +4,35 @@ Cassette.@context TraceurCtx
 
 struct Trace
   seen::Set
+  stack::Vector{Call}
   warn
 end
 
-Trace(w) = Trace(Set(), w)
+Trace(w) = Trace(Set(), Vector{Call}(), w)
 
 isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
 
 const ignored_methods = Set([@which((1,2)[1])])
 const ignored_functions = Set([getproperty, setproperty!])
 
-function Cassette.posthook(ctx::TraceurCtx, out, f, args...)
-  C, T = DynamicCall(f, args...), typeof.((f, args))
+function Cassette.prehook(ctx::TraceurCtx, f, args...)
   tra = ctx.metadata
-  (f ∈ ignored_functions || T ∈ tra.seen || isprimitive(f) ||
-    method(C) ∈ ignored_methods || method(C).module ∈ (Core, Core.Compiler)) && return nothing
+  C = DynamicCall(f, args...)
+  push!(tra.stack, C)
+  nothing
+end
 
-  push!(tra.seen, T)
-  analyse((a...) -> tra.warn(Warning(a...)), C)
-  return nothing
+function Cassette.posthook(ctx::TraceurCtx, out, f, args...)
+  tra = ctx.metadata
+  C = tra.stack[end]
+  T = typeof.((f, args))
+  if !(f ∈ ignored_functions || T ∈ tra.seen || isprimitive(f) ||
+       method(C) ∈ ignored_methods || method(C).module ∈ (Core, Core.Compiler))
+    push!(tra.seen, T)
+    analyse((a...) -> tra.warn(Warning(a..., copy(tra.stack))), C)
+  end
+  pop!(tra.stack)
+  nothing
 end
 
 trace(w, f) = Cassette.recurse(TraceurCtx(metadata=Trace(w)), f)

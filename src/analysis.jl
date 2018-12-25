@@ -70,9 +70,11 @@ struct Warning
   call::Call
   line::Int
   message::String
+  stack::Vector{Call}
 end
 
 Warning(call, message) = Warning(call, -1, message)
+Warning(call, line, message) = Warning(call, line, message, Call[])
 
 function warning_printer()
   (w) -> begin

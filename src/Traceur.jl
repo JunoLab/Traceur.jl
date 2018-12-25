@@ -6,11 +6,12 @@ using MacroTools
 
 import Core.MethodInstance
 
-export @trace, @trace_static
+export @trace, @trace_static, @should_not_warn, @check
 
 include("util.jl")
 include("analysis.jl")
 include("trace.jl")
 # include("trace_static.jl")
+include("check.jl")
 
 end # module
