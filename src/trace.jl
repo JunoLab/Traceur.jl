@@ -25,6 +25,7 @@ end
 function Cassette.posthook(ctx::TraceurCtx, out, f, args...)
   tra = ctx.metadata
   C = tra.stack[end]
+  f = C.f
   T = typeof.((f, args))
   if !(f ∈ ignored_functions || T ∈ tra.seen || isprimitive(f) ||
        method(C) ∈ ignored_methods || method(C).module ∈ (Core, Core.Compiler))
