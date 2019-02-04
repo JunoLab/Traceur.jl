@@ -27,11 +27,8 @@ end
 g(x) = x+cy
 
 naive_sum_wrapper(x) = naive_sum(x)
-@macroexpand @trace(naive_sum_wrapper(rand(4)), maxdepth=2, modules=[Base])
-@trace(naive_sum_wrapper(rand(4)), maxdepth=2, modules=[Base])
 
 x = 1
-
 my_add(y) = x + y
 
 module Foo
@@ -48,6 +45,7 @@ naive_sum_wrapper(x) = Bar.naive_sum(x)
 end
 
 @should_not_warn my_stable_add(y) = my_add(y)
+my_stable_add_undecorated(y) = my_add(y)
 
 @testset "Traceur" begin
   ws = Traceur.warnings(() -> naive_relu(1))
@@ -98,6 +96,9 @@ end
     @test warns_for(ws, "assigned", "returns")
   end
 
-  @test_nowarn @check my_add(1)
-  @test_throws AssertionError @check my_stable_add(1)
+  @testset "test utilities" begin
+    @test_nowarn @check my_add(1)
+    @test_throws AssertionError @check my_stable_add(1)
+    @test_throws AssertionError @check my_stable_add_undecorated(1) nowarn=[my_stable_add_undecorated]
+  end
 end
