@@ -26,47 +26,77 @@ end
 
 g(x) = x+cy
 
-function test(warnings)
-  ws = warnings(() -> naive_relu(1))
-  @test isempty(ws)
-
-  ws = warnings(() -> naive_relu(1.0))
-  @test warns_for(ws, "returns")
-
-  ws = warnings(() -> randone())
-  @test warns_for(ws, "returns")
-
-  ws = warnings(() -> naive_sum([1]))
-  @test isempty(ws)
-
-  ws = warnings(() -> naive_sum([1.0]))
-  @test warns_for(ws, "assigned", "returns")
-
-  ws = warnings(() -> f(1))
-  @test warns_for(ws, "global", "dispatch", "returns")
-
-  ws = warnings(() -> f2(1))
-  @test warns_for(ws, "global", "dispatch", "returns")
-
-  ws = warnings(() -> g(1))
-  @test isempty(ws)
-end
+naive_sum_wrapper(x) = naive_sum(x)
+@macroexpand @trace(naive_sum_wrapper(rand(4)), maxdepth=2, modules=[Base])
+@trace(naive_sum_wrapper(rand(4)), maxdepth=2, modules=[Base])
 
 x = 1
 
 my_add(y) = x + y
 
+module Foo
+module Bar
+function naive_sum(xs)
+  s = 0
+  for x in xs
+    s += x
+  end
+  return s
+end
+end
+naive_sum_wrapper(x) = Bar.naive_sum(x)
+end
+
 @should_not_warn my_stable_add(y) = my_add(y)
 
 @testset "Traceur" begin
-  @testset "Dynamic" begin
-    test(Traceur.warnings)
+  ws = Traceur.warnings(() -> naive_relu(1))
+  @test isempty(ws)
+
+  ws = Traceur.warnings(() -> naive_relu(1.0))
+  @test warns_for(ws, "returns")
+
+  ws = Traceur.warnings(() -> randone())
+  @test warns_for(ws, "returns")
+
+  ws = Traceur.warnings(() -> naive_sum([1]))
+  @test isempty(ws)
+
+  ws = Traceur.warnings(() -> naive_sum([1.0]))
+  @test warns_for(ws, "assigned", "returns")
+
+  ws = Traceur.warnings(() -> f(1))
+  @test warns_for(ws, "global", "dispatch", "returns")
+
+  ws = Traceur.warnings(() -> f2(1))
+  @test warns_for(ws, "global", "dispatch", "returns")
+
+  ws = Traceur.warnings(() -> g(1))
+  @test isempty(ws)
+
+  @testset "depth limiting" begin
+    ws = Traceur.warnings(() -> naive_sum_wrapper(rand(3)); maxdepth = 0)
+    @test length(ws) == 1
+    @test warns_for(ws, "returns")
+
+    ws = Traceur.warnings(() -> naive_sum_wrapper(rand(3)); maxdepth = 1)
+    @test length(ws) == 4
+    @test warns_for(ws, "assigned", "returns")
   end
-  # @testset "Static" begin
-  #   test(Traceur.warnings_static)
-  # end
-  # @test_nowarn @trace naive_sum(1.0)
-  # @test_nowarn @trace_static naive_sum(1.0)
+
+  @testset "module specific" begin
+    ws = Traceur.warnings(() -> Foo.naive_sum_wrapper(rand(3)); maxdepth = 2, modules=[Foo])
+    @test length(ws) == 1
+    @test warns_for(ws, "returns")
+
+    ws = Traceur.warnings(() -> Foo.naive_sum_wrapper(rand(3)); maxdepth = 2, modules=[Foo.Bar])
+    @test length(ws) == 3
+    @test warns_for(ws, "assigned", "returns")
+
+    ws = Traceur.warnings(() -> Foo.naive_sum_wrapper(rand(3)); maxdepth = 2, modules=[Foo, Foo.Bar])
+    @test length(ws) == 4
+    @test warns_for(ws, "assigned", "returns")
+  end
 
   @test_nowarn @check my_add(1)
   @test_throws AssertionError @check my_stable_add(1)

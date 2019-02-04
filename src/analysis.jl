@@ -73,14 +73,17 @@ struct Warning
   stack::Vector{Call}
 end
 
+getmod(w::Warning) = method(w.call).module
+
 Warning(call, message) = Warning(call, -1, message)
 Warning(call, line, message) = Warning(call, line, message, Call[])
 
-function warning_printer()
+function warning_printer(modules=[])
   (w) -> begin
     meth = method(w.call)
-    # TODO: figure out file of call, and then print `method_expr(call)`
-    @safe_warn w.message _file=String(meth.file) _line=w.line _module=nothing
+    if isempty(modules) || getmod(w) in modules
+      @safe_warn w.message _file=String(meth.file) _line=w.line _module=nothing
+    end
   end
 end
 
