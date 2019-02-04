@@ -1,10 +1,12 @@
 const should_not_warn = Set{Function}()
 
-# this is only a macro to avoid parens around function definitions:
-# @should_not_warn
-# function foo(x)
-#   ...
-# end
+"""
+  @should_not_warn function foo(x)
+    ...
+  end
+
+Add `foo` to the list of functions in which no warnings may occur (checkd by `@check`).
+"""
 macro should_not_warn(expr)
   quote
     fun = $(esc(expr))
@@ -16,13 +18,16 @@ end
 """
     check(f::Function)
 
-Run Traceur on f, and throw an error if any warnings occur inside functions tagged with @should_not_warn.
+Run Traceur on `f`, and throw an error if any warnings occur inside functions
+tagged with `@should_not_warn`.
 """
-function check(f)
+function check(f; nowarn=Any[], kwargs...)
   failed = false
   wp = warning_printer()
-  result = trace(f) do warning
-    ix = findfirst((call) -> call.f in should_not_warn, warning.stack)
+  result = trace(f; kwargs...) do warning
+    ix = findfirst(warning.stack) do call
+      call.f in should_not_warn || call.f in nowarn
+    end
     if ix != nothing
       tagged_function = warning.stack[ix].f
       message = "$(warning.message) (called from $(tagged_function))"
@@ -31,10 +36,18 @@ function check(f)
       failed = true
     end
   end
-  @assert !failed "One or more warnings occured inside functions tagged with @should_not_warn"
+  @assert !failed "One or more warnings occured inside functions tagged with `@should_not_warn`"
   result
 end
 
-macro check(expr)
-  :(check(() -> $(esc(expr))))
+"""
+    @check fun(args...) nowarn=[] maxdepth=typemax(Int)
+
+Run Traceur on `fun`, and throw an error if any warnings occur inside functions
+tagged with `@should_not_warn` or specified in `nowarn`.
+"""
+macro check(expr, args...)
+  quote
+      check(() -> $(esc(expr)); $(map(esc, args)...))
+    end
 end
