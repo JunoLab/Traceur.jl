@@ -1,9 +1,9 @@
 const should_not_warn = Set{Function}()
 
 """
-  @should_not_warn function foo(x)
-    ...
-  end
+    @should_not_warn function foo(x)
+      ...
+    end
 
 Add `foo` to the list of functions in which no warnings may occur (checkd by `@check`).
 """
