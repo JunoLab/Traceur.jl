@@ -61,7 +61,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Traceur.jl",
     "title": "Traceur.@should_not_warn",
     "category": "macro",
-    "text": "@shouldnotwarn function foo(x)     ...   end\n\nAdd foo to the list of functions in which no warnings may occur (checkd by @check).\n\n\n\n\n\n"
+    "text": "@should_not_warn function foo(x)\n  ...\nend\n\nAdd foo to the list of functions in which no warnings may occur (checkd by @check).\n\n\n\n\n\n"
 },
 
 {
