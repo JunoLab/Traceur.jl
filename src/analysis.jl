@@ -140,7 +140,7 @@ function locals(warn, call)
     var = c.slotnames[x.id]
     startswith(string(var), '#') && continue
     for (l, t) in as
-      warn(call, l, "$var is assigned as $t")
+      warn(call, l, "$(var) is assigned as $(t)")
     end
   end
 end
