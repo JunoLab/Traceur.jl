@@ -17,7 +17,7 @@ function naive_sum(xs)
   return s
 end
 
-f(x) = x+y
+foo(x) = x+y
 
 function f2(x)
   foo = y
@@ -63,7 +63,7 @@ my_stable_add_undecorated(y) = my_add(y)
   ws = Traceur.warnings(() -> naive_sum([1.0]))
   @test warns_for(ws, "assigned", "returns")
 
-  ws = Traceur.warnings(() -> f(1))
+  ws = Traceur.warnings(() -> foo(1))
   @test warns_for(ws, "global", "dispatch", "returns")
 
   ws = Traceur.warnings(() -> f2(1))
@@ -100,5 +100,23 @@ my_stable_add_undecorated(y) = my_add(y)
     @test_nowarn @check my_add(1)
     @test_throws AssertionError @check my_stable_add(1)
     @test_throws AssertionError @check my_stable_add_undecorated(1) nowarn=[my_stable_add_undecorated]
+    @test_throws AssertionError @check my_stable_add_undecorated(1) nowarn=:all
+    function bar(x)
+      x > 0 ? 1.0 : 1
+    end
+    @test @check(bar(2)) == 1.0
+    @test @check(bar(2), maxdepth=100) == 1.0
+    @test @check(bar(2), nowarn=:none) == 1.0
+    @test @check(bar(2), nowarn=:none, maxdepth=100) == 1.0
+    @test @check(bar(2), nowarn=[]) == 1.0
+    @test @check(bar(2), nowarn=[], maxdepth=100) == 1.0
+    @test @check(bar(2), nowarn=Any[]) == 1.0
+    @test @check(bar(2), nowarn=Any[], maxdepth=100) == 1.0
+    @test_throws AssertionError @check(bar(2), nowarn=[bar])
+    @test_throws AssertionError @check(bar(2), nowarn=[bar], maxdepth=100)
+    @test_throws AssertionError @check(bar(2), nowarn=Any[bar])
+    @test_throws AssertionError @check(bar(2), nowarn=Any[bar], maxdepth=100)
+    @test_throws AssertionError @check(bar(2), nowarn=:all)
+    @test_throws AssertionError @check(bar(2), nowarn=:all, maxdepth=100)
   end
 end
