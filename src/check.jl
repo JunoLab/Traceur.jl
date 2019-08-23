@@ -16,17 +16,25 @@ macro should_not_warn(expr)
 end
 
 """
-    check(f::Function)
+    check(f::Function; nowarn=[], kwargs...)
 
 Run Traceur on `f`, and throw an error if any warnings occur inside functions
-tagged with `@should_not_warn`.
+tagged with `@should_not_warn` or specified in `nowarn`. To throw an error
+if any warnings occur inside any functions, set `nowarn=:all`.
 """
 function check(f; nowarn=Any[], kwargs...)
+  if nowarn isa Symbol
+    _nowarn = Any[]
+    _nowarn_all = nowarn == :all
+  else
+    _nowarn = nowarn
+    _nowarn_all = false
+  end
   failed = false
   wp = warning_printer()
   result = trace(f; kwargs...) do warning
     ix = findfirst(warning.stack) do call
-      call.f in should_not_warn || call.f in nowarn
+      _nowarn_all || call.f in should_not_warn || call.f in _nowarn
     end
     if ix != nothing
       tagged_function = warning.stack[ix].f
@@ -36,7 +44,7 @@ function check(f; nowarn=Any[], kwargs...)
       failed = true
     end
   end
-  @assert !failed "One or more warnings occured inside functions tagged with `@should_not_warn`"
+  @assert !failed "One or more warnings occured inside functions tagged with `@should_not_warn` or specified with `nowarn`"
   result
 end
 
@@ -44,7 +52,8 @@ end
     @check fun(args...) nowarn=[] maxdepth=typemax(Int)
 
 Run Traceur on `fun`, and throw an error if any warnings occur inside functions
-tagged with `@should_not_warn` or specified in `nowarn`.
+tagged with `@should_not_warn` or specified in `nowarn`. To throw an error
+if any warnings occur inside any functions, set `nowarn=:all`.
 """
 macro check(expr, args...)
   quote
