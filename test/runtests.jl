@@ -17,7 +17,7 @@ function naive_sum(xs)
   return s
 end
 
-foo(x) = x+y
+f(x) = x+y
 
 function f2(x)
   foo = y
@@ -63,7 +63,7 @@ my_stable_add_undecorated(y) = my_add(y)
   ws = Traceur.warnings(() -> naive_sum([1.0]))
   @test warns_for(ws, "assigned", "returns")
 
-  ws = Traceur.warnings(() -> foo(1))
+  ws = Traceur.warnings(() -> f(1))
   @test warns_for(ws, "global", "dispatch", "returns")
 
   ws = Traceur.warnings(() -> f2(1))
