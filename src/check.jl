@@ -44,7 +44,7 @@ function check(f; nowarn=Any[], kwargs...)
       failed = true
     end
   end
-  @assert !failed "One or more warnings occured inside functions tagged with `@should_not_warn or specified with `nowarn`"
+  @assert !failed "One or more warnings occured inside functions tagged with `@should_not_warn` or specified with `nowarn`"
   result
 end
 
