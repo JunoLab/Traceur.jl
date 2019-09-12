@@ -58,7 +58,12 @@ my_stable_add_undecorated(y) = my_add(y)
   @test warns_for(ws, "returns")
 
   ws = Traceur.warnings(() -> naive_sum([1]))
-  @test isempty(ws)
+  if Base.VERSION >= v"1.2.0"
+    @test length(ws) == 4
+    @test warns_for(ws, "assigned")
+  else
+    @test isempty(ws)
+  end
 
   ws = Traceur.warnings(() -> naive_sum([1.0]))
   @test warns_for(ws, "assigned", "returns")
@@ -78,7 +83,11 @@ my_stable_add_undecorated(y) = my_add(y)
     @test warns_for(ws, "returns")
 
     ws = Traceur.warnings(() -> naive_sum_wrapper(rand(3)); maxdepth = 1)
-    @test length(ws) == 4
+    if Base.VERSION >= v"1.2.0"
+      @test length(ws) == 6
+    else
+      @test length(ws) == 4
+    end
     @test warns_for(ws, "assigned", "returns")
   end
 
@@ -88,11 +97,19 @@ my_stable_add_undecorated(y) = my_add(y)
     @test warns_for(ws, "returns")
 
     ws = Traceur.warnings(() -> Foo.naive_sum_wrapper(rand(3)); maxdepth = 2, modules=[Foo.Bar])
-    @test length(ws) == 3
+    if Base.VERSION >= v"1.2.0"
+      @test length(ws) == 5
+    else
+      @test length(ws) == 3
+    end
     @test warns_for(ws, "assigned", "returns")
 
     ws = Traceur.warnings(() -> Foo.naive_sum_wrapper(rand(3)); maxdepth = 2, modules=[Foo, Foo.Bar])
-    @test length(ws) == 4
+    if Base.VERSION >= v"1.2.0"
+      @test length(ws) == 6
+    else
+      @test length(ws) == 4
+    end
     @test warns_for(ws, "assigned", "returns")
   end
 
