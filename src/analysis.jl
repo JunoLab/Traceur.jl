@@ -89,8 +89,8 @@ end
 
 # global variables
 
-function globals(warn, call)
-  c = code(call)[1]
+function globals(warn, call; optimize::Bool=false)
+  c = code(call; optimize=optimize)[1]
   eachline(c) do line, ex
     ex isa Expr || return
     for ref in ex.args
@@ -104,8 +104,8 @@ end
 
 # fields
 
-function fields(warn, call)
-  c = code(call)[1]
+function fields(warn, call; optimize::Bool=false)
+  c = code(call; optimize=optimize)[1]
   eachline(c) do line, x
     (isexpr(x, :(=)) && isexpr(x.args[2], :call) &&
      rebuild(c, x.args[2].args[1]) == GlobalRef(Core,:getfield)) ||
@@ -132,8 +132,8 @@ function assignments(code, l = -1)
   return assigns
 end
 
-function locals(warn, call)
-  c = code(call)[1]
+function locals(warn, call; optimize::Bool=false)
+  c = code(call; optimize=optimize)[1]
   as = assignments(c)
   for (x, as) in as
     (length(unique(map(x->x[2],as))) == 1 && (isconcretetype(as[1][2]) || istype(as[1][2]))) && continue
@@ -149,8 +149,8 @@ end
 
 rebuild(code, x::Core.SSAValue) = rebuild(code, code.code[x.id])
 
-function dispatch(warn, call)
-  c = code(call, optimize = true)[1]
+function dispatch(warn, call; optimize::Bool=true)
+  c = code(call, optimize = optimize)[1]
   eachline(c) do line, ex
     isexpr(ex, :(=)) && (ex = ex.args[2])
     isexpr(ex, :call) || return
@@ -175,8 +175,8 @@ istype(::Type{T}) where T = true
 istype(::Union) = false
 istype(x) = false
 
-function rettype(warn, call)
-  c, out = code(call)
+function rettype(warn, call; optimize::Bool=false)
+  c, out = code(call, optimize = optimize)
 
   if out == Any || !(issmallunion(out) || isconcretetype(out) || istype(out))
     warn(call, method(call).line, "$(call.f) returns $out")
@@ -185,10 +185,17 @@ end
 
 # overall analysis
 
-function analyse(warn, call)
-  globals(warn, call)
-  locals(warn, call)
-  fields(warn, call)
-  dispatch(warn, call)
-  rettype(warn, call)
+function analyse(warn,
+                 call;
+                 optimize::Bool=false,
+                 optimize_globals::Bool=optimize,
+                 optimize_locals::Bool=optimize,
+                 optimize_fields::Bool=optimize,
+                 optimize_dispatch::Bool=true,
+                 optimize_rettype::Bool=optimize,)
+  globals(warn, call; optimize=optimize_globals)
+  locals(warn, call; optimize=optimize_locals)
+  fields(warn, call; optimize=optimize_fields)
+  dispatch(warn, call; optimize=optimize_dispatch)
+  rettype(warn, call; optimize=optimize_rettype)
 end

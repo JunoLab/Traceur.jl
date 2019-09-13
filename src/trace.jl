@@ -7,10 +7,32 @@ struct Trace
   stack::Vector{Call}
   warn
   maxdepth::Int
+  optimize::Bool
+  optimize_globals::Bool
+  optimize_locals::Bool
+  optimize_fields::Bool
+  optimize_dispatch::Bool
+  optimize_rettype::Bool
 end
 
-function Trace(w; maxdepth=typemax(Int))
-  Trace(Set(), Vector{Call}(), w, maxdepth)
+function Trace(w;
+               maxdepth=typemax(Int),
+               optimize::Bool=false,
+               optimize_globals::Bool=optimize,
+               optimize_locals::Bool=optimize,
+               optimize_fields::Bool=optimize,
+               optimize_dispatch::Bool=true,
+               optimize_rettype::Bool=optimize)
+  Trace(Set(),
+        Vector{Call}(),
+        w,
+        maxdepth,
+        optimize,
+        optimize_globals,
+        optimize_locals,
+        optimize_fields,
+        optimize_dispatch,
+        optimize_rettype)
 end
 
 isprimitive(f) = f isa Core.Builtin || f isa Core.IntrinsicFunction
@@ -33,7 +55,14 @@ function Cassette.posthook(ctx::TraceurCtx, out, f, args...)
   if !(f ∈ ignored_functions || T ∈ tra.seen || isprimitive(f) ||
        method(C) ∈ ignored_methods || method(C).module ∈ (Core, Core.Compiler))
     push!(tra.seen, T)
-    analyse((a...) -> tra.warn(Warning(a..., copy(tra.stack))), C)
+    analyse((a...) -> tra.warn(Warning(a..., copy(tra.stack))),
+            C;
+            optimize = tra.optimize,
+            optimize_globals = tra.optimize_globals,
+            optimize_locals = tra.optimize_locals,
+            optimize_fields = tra.optimize_fields,
+            optimize_dispatch = tra.optimize_dispatch,
+            optimize_rettype = tra.optimize_rettype)
   end
   pop!(tra.stack)
   nothing
