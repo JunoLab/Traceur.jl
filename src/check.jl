@@ -16,25 +16,40 @@ macro should_not_warn(expr)
 end
 
 """
-    check(f::Function; nowarn=[], kwargs...)
+    check(f::Function; nowarn=[], except=[], kwargs...)
 
 Run Traceur on `f`, and throw an error if any warnings occur inside functions
-tagged with `@should_not_warn` or specified in `nowarn`. To throw an error
-if any warnings occur inside any functions, set `nowarn=:all`.
+tagged with `@should_not_warn` or specified in `nowarn`.
+
+To throw an error if any warnings occur inside any functions, set
+`nowarn=:all`.
+
+To throw an error if any warnings occur inside any functions EXCEPT for a
+certain set of functions, set `nowarn=:allexcept` and list the exceptions in
+the `except` variable, i.e. set `except=[f, g, h, ...]`
 """
-function check(f; nowarn=Any[], kwargs...)
+function check(f; nowarn=Any[], except=Any[], kwargs...)
   if nowarn isa Symbol
     _nowarn = Any[]
-    _nowarn_all = nowarn == :all
+    if nowarn == :all
+      _nowarn_all = true
+      _nowarn_allexcept = false
+    elseif nowarn == :allexcept
+      _nowarn_all = false
+      _nowarn_allexcept = true
+    else
+      throw(ArgumentError(":$(nowarn) is not a valid value for nowarn"))
+    end
   else
     _nowarn = nowarn
     _nowarn_all = false
+    _nowarn_allexcept = false
   end
   failed = false
   wp = warning_printer()
   result = trace(f; kwargs...) do warning
     ix = findfirst(warning.stack) do call
-      _nowarn_all || call.f in should_not_warn || call.f in _nowarn
+      _nowarn_all || call.f in should_not_warn || call.f in _nowarn || (_nowarn_allexcept && !(call.f in except))
     end
     if ix != nothing
       tagged_function = warning.stack[ix].f
@@ -49,11 +64,17 @@ function check(f; nowarn=Any[], kwargs...)
 end
 
 """
-    @check fun(args...) nowarn=[] maxdepth=typemax(Int)
+    @check fun(args...) nowarn=[] except=[] maxdepth=typemax(Int)
 
 Run Traceur on `fun`, and throw an error if any warnings occur inside functions
-tagged with `@should_not_warn` or specified in `nowarn`. To throw an error
-if any warnings occur inside any functions, set `nowarn=:all`.
+tagged with `@should_not_warn` or specified in `nowarn`.
+
+To throw an error if any warnings occur inside any functions, set
+`nowarn=:all`.
+
+To throw an error if any warnings occur inside any functions EXCEPT for a
+certain set of functions, set `nowarn=:allexcept` and list the exceptions in
+the `except` variable, i.e. set `except=[f, g, h, ...]`
 """
 macro check(expr, args...)
   quote
