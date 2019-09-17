@@ -133,9 +133,9 @@ my_stable_add_undecorated(y) = my_add(y)
     @test_throws AssertionError @check(bar(2), nowarn=Any[bar], maxdepth=100)
     @test_throws AssertionError @check(bar(2), nowarn=:all)
     @test_throws AssertionError @check(bar(2), nowarn=:all, maxdepth=100)
-    @test_nowarn @check(bar(2), nowarn=:allexcept, except=[bar]) == 1.0
-    @test_nowarn @check(bar(2), nowarn=:allexcept, except=[bar], maxdepth=100) == 1.0
-    @test_nowarn @check(bar(2), nowarn=:allexcept, except=Any[bar]) == 1.0
-    @test_nowarn @check(bar(2), nowarn=:allexcept, except=Any[bar], maxdepth=100) == 1.0
+    @test_nowarn @check(bar(2), except=[bar]) == 1.0
+    @test_nowarn @check(bar(2), except=[bar], maxdepth=100) == 1.0
+    @test_nowarn @check(bar(2), except=Any[bar]) == 1.0
+    @test_nowarn @check(bar(2), except=Any[bar], maxdepth=100) == 1.0
   end
 end
