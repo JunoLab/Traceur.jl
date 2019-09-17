@@ -121,19 +121,21 @@ my_stable_add_undecorated(y) = my_add(y)
     function bar(x)
       x > 0 ? 1.0 : 1
     end
-    @test @check(bar(2)) == 1.0
-    @test @check(bar(2), maxdepth=100) == 1.0
-    @test @check(bar(2), nowarn=:none) == 1.0
-    @test @check(bar(2), nowarn=:none, maxdepth=100) == 1.0
-    @test @check(bar(2), nowarn=[]) == 1.0
-    @test @check(bar(2), nowarn=[], maxdepth=100) == 1.0
-    @test @check(bar(2), nowarn=Any[]) == 1.0
-    @test @check(bar(2), nowarn=Any[], maxdepth=100) == 1.0
+    @test_nowarn @check(bar(2)) == 1.0
+    @test_nowarn @check(bar(2), maxdepth=100) == 1.0
+    @test_nowarn @check(bar(2), nowarn=[]) == 1.0
+    @test_nowarn @check(bar(2), nowarn=[], maxdepth=100) == 1.0
+    @test_nowarn @check(bar(2), nowarn=Any[]) == 1.0
+    @test_nowarn @check(bar(2), nowarn=Any[], maxdepth=100) == 1.0
     @test_throws AssertionError @check(bar(2), nowarn=[bar])
     @test_throws AssertionError @check(bar(2), nowarn=[bar], maxdepth=100)
     @test_throws AssertionError @check(bar(2), nowarn=Any[bar])
     @test_throws AssertionError @check(bar(2), nowarn=Any[bar], maxdepth=100)
     @test_throws AssertionError @check(bar(2), nowarn=:all)
     @test_throws AssertionError @check(bar(2), nowarn=:all, maxdepth=100)
+    @test_nowarn @check(bar(2), except=[bar]) == 1.0
+    @test_nowarn @check(bar(2), except=[bar], maxdepth=100) == 1.0
+    @test_nowarn @check(bar(2), except=Any[bar]) == 1.0
+    @test_nowarn @check(bar(2), except=Any[bar], maxdepth=100) == 1.0
   end
 end
