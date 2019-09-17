@@ -26,7 +26,7 @@ To throw an error if any warnings occur inside any functions, set
 
 To throw an error if any warnings occur inside any functions EXCEPT for a
 certain set of functions, list the exceptions in the `except` variable,
-for example `except=[f,g,h]`
+for example `except=[g,h]`
 """
 function check(f; nowarn=Any[], except=Any[], kwargs...)
   if !isempty(except) # if `except` is provided, we ignore the value of `nowarn`
@@ -71,7 +71,7 @@ To throw an error if any warnings occur inside any functions, set
 
 To throw an error if any warnings occur inside any functions EXCEPT for a
 certain set of functions, list the exceptions in the `except` variable,
-for example `except=[f,g,h]`
+for example `except=[g,h]`
 """
 macro check(expr, args...)
   quote
