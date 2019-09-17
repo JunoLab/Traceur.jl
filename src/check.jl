@@ -25,26 +25,23 @@ To throw an error if any warnings occur inside any functions, set
 `nowarn=:all`.
 
 To throw an error if any warnings occur inside any functions EXCEPT for a
-certain set of functions, set `nowarn=:allexcept` and list the exceptions in
-the `except` variable, i.e. set `except=[f, g, h, ...]`
+certain set of functions, list the exceptions in the `except` variable,
+for example `except=[f,g,h]`
 """
 function check(f; nowarn=Any[], except=Any[], kwargs...)
-  if nowarn isa Symbol
+  if !isempty(except) # if `except` is provided, we ignore the value of `nowarn`
     _nowarn = Any[]
-    if nowarn == :all
-      _nowarn_all = true
-      _nowarn_allexcept = false
-    elseif nowarn == :allexcept
-      _nowarn_all = false
-      _nowarn_allexcept = true
-    else
-      throw(ArgumentError(":$(nowarn) is not a valid value for nowarn"))
-    end
+    _nowarn_all = false
+    _nowarn_allexcept = true
+  elseif nowarn isa Symbol
+    _nowarn = Any[]
+    _nowarn_all = nowarn == :all
+    _nowarn_allexcept = false
   else
     _nowarn = nowarn
     _nowarn_all = false
     _nowarn_allexcept = false
-  end
+  end  
   failed = false
   wp = warning_printer()
   result = trace(f; kwargs...) do warning
@@ -73,8 +70,8 @@ To throw an error if any warnings occur inside any functions, set
 `nowarn=:all`.
 
 To throw an error if any warnings occur inside any functions EXCEPT for a
-certain set of functions, set `nowarn=:allexcept` and list the exceptions in
-the `except` variable, i.e. set `except=[f, g, h, ...]`
+certain set of functions, list the exceptions in the `except` variable,
+for example `except=[f,g,h]`
 """
 macro check(expr, args...)
   quote
