@@ -22,7 +22,11 @@ method(c::DynamicCall) = which(c.f, argtypes(c))
 method_expr(c::DynamicCall) = method_expr(c.f, argtypes(c))
 
 function code(c::DynamicCall; optimize = false)
-  codeinfo = code_typed(c.f, argtypes(c), optimize = optimize)
+  codeinfo = @static if VERSION >= v"1.1.0"
+    code_typed(c.f, argtypes(c), optimize = optimize, debuginfo=:source)
+  else
+    code_typed(c.f, argtypes(c), optimize = optimize)
+  end
   @assert length(codeinfo) == 1
   codeinfo = codeinfo[1]
   return codeinfo
