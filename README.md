@@ -1,6 +1,10 @@
 # Traceur
 
-[![Build Status](https://travis-ci.org/JunoLab/Traceur.jl.svg?branch=master)](https://travis-ci.org/JunoLab/Traceur.jl) [![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://JunoLab.github.io/Traceur.jl/latest)
+> [!WARNING]  
+> This package is not maintained anymore. Please use e.g. [JET.jl](https://github.com/aviatesk/JET.jl) instead.
+
+---
+[![Docs](https://img.shields.io/badge/docs-latest-blue.svg)](https://JunoLab.github.io/Traceur.jl/latest)
 
 Traceur is essentially a codified version of the [Julia performance tips](https://docs.julialang.org/en/v1/manual/performance-tips/). You run your code, it tells you about any obvious performance traps.
 
